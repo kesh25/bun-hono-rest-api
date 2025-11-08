@@ -1,0 +1,51 @@
+export const apiRoutes = [
+  {
+    method: "GET",
+    path: "/api/v1",
+    description: "API Documentation",
+    auth: false,
+    admin: false,
+  },
+  {
+    method: "POST",
+    path: "/api/v1/users",
+    description: "Create a new user",
+    auth: false,
+    admin: false,
+  },
+  {
+    method: "POST",
+    path: "/api/v1/users/login",
+    description: "User login",
+    auth: false,
+    admin: false,
+  },
+  {
+    method: "GET",
+    path: "/api/v1/users/profile",
+    description: "Get user profile",
+    auth: true,
+    admin: false,
+  },
+  {
+    method: "PUT",
+    path: "/api/v1/users/profile",
+    description: "Update user profile",
+    auth: true,
+    admin: false,
+  },
+  {
+    method: "GET",
+    path: "/api/v1/users",
+    description: "Get all users",
+    auth: true,
+    admin: true,
+  },
+  {
+    method: "GET",
+    path: "/api/v1/users/:id",
+    description: "Get user by ID",
+    auth: true,
+    admin: true,
+  },
+];

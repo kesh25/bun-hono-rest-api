@@ -1,51 +1,119 @@
-import { Hono } from 'hono'
-import { logger } from 'hono/logger'
-import { prettyJSON } from 'hono/pretty-json'
-import { cors } from 'hono/cors'
-//
-import connectDB from './config/db'
-import { Users } from './routes'
-import { errorHandler, notFound } from './middlewares'
+import { Context, Hono, Next } from "hono";
 
-// Initialize the Hono app
-const app = new Hono().basePath('/api/v1')
+import { compress } from "hono/compress";
+import { logger } from "hono/logger";
+import { cors } from "hono/cors";
+import { createBunWebSocket } from "hono/bun";
+import type { ServerWebSocket } from "bun";
 
-// Config MongoDB
-connectDB()
+import { Users } from "./src/routes";
 
-// Initialize middlewares
-app.use('*', logger(), prettyJSON())
+import {
+  betterServiceMiddleware,
+  errorHandler,
+  notFound,
+} from "./src/middlewares";
+import { apiRoutes } from "./src/utils/api-routes";
+import { ApiDoc } from "./src/components/api-docs";
+import "./src/config/compress.config";
 
-// Cors
+import { DB } from "./src/config";
+
+import { handleWebSocketConnection } from "./src/lib/socket";
+import { serve } from "bun";
+import { auth } from "./src/lib/auth";
+// Initialize the Hono app with base path
+const app = new Hono({ strict: false }).basePath("/api");
+
+// Config MongoDB - Only connect if not in Cloudflare Workers environment
+if (typeof process !== "undefined") {
+  DB().then(async (conn: any) => {});
+}
+
+const { upgradeWebSocket, websocket } = createBunWebSocket<ServerWebSocket>();
+
+// Logger middleware
+app.use(logger());
+
+// Compress middleware
 app.use(
-  '*',
+  compress({
+    encoding: "gzip",
+    // threshold: 1024, // Minimum size to compress (1KB)
+  }),
+);
+
+// CORS configuration (tightened for security)
+app.use(
+  "*",
   cors({
-    origin: '*',
-    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  })
-)
+    origin: (origin) => {
+      const allowed = [
+        "http://localhost:3000",
+        // "https://mail.vuteer.com",
+        // "https://app.vuteer.com",
+        // "https://mailadmin.vuteer.com",
+      ];
+      return allowed.includes(origin ?? "") ? origin : "";
+    },
+    credentials: true,
+    allowMethods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    maxAge: 86400,
+  }),
+);
 
-// Home Route
-app.get('/', (c) => c.text('Welcome to the API!'))
+app.use("*", async (c: Context, next: Next) => {
+  return await betterServiceMiddleware(c, next);
+});
 
-// User Routes
-app.route('/users', Users)
+// Home Route with API Documentation [FOR DEMO PURPOSES]
+app.get("/", (c) => {
+  return c.html(
+    ApiDoc({
+      title: "VuMail Api",
+      version: "1.0.0",
+      routes: apiRoutes,
+    }),
+  );
+});
 
-// Error Handler
-app.onError((err, c) => {
-  const error = errorHandler(c)
-  return error
-})
+// web socket
+app.get(
+  "/ws",
+  upgradeWebSocket((_) => handleWebSocketConnection(_)),
+);
+console.log(`🚀 WebSocket server running on ${Bun.env.BETTER_AUTH_URL}`);
 
-// Not Found Handler
-app.notFound((c) => {
-  const error = notFound(c)
-  return error
-})
+app.on(["GET", "POST"], "/auth/*", async (c) => await auth.handler(c.req.raw));
 
-const port = Bun.env.PORT || 8000
+// routes
+app.route("/users", Users); // User Routes
 
+// Error Handler (improved to use err)
+app.onError(errorHandler);
+
+// Not Found Handler (standardized response)
+app.notFound(notFound);
+
+// Determine the environment
+const portEnv = process.env.PORT || "9000";
+const port = parseInt(portEnv);
+
+if (isNaN(port)) {
+  console.error("❌ Invalid port:", portEnv);
+  process.exit(1);
+}
+
+console.log(`🚀 Attempting to start server on port: ${port}`);
+// const port = process.env?.PORT || 9000;
+
+// Use Bun to serve the Hono app
 export default {
   port,
   fetch: app.fetch,
-}
+  websocket,
+};
+
+// createSocketServer(server);
+
+// export default app;
