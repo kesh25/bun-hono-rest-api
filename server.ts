@@ -22,6 +22,7 @@ import { DB } from "./src/config";
 import { handleWebSocketConnection } from "./src/lib/socket";
 import { serve } from "bun";
 import { auth } from "./src/lib/auth";
+import { trustedOrigins } from "./origins";
 // Initialize the Hono app with base path
 const app = new Hono({ strict: false }).basePath("/api");
 
@@ -47,15 +48,8 @@ app.use(
 app.use(
   "*",
   cors({
-    origin: (origin) => {
-      const allowed = [
-        "http://localhost:3000",
-        // "https://mail.vuteer.com",
-        // "https://app.vuteer.com",
-        // "https://mailadmin.vuteer.com",
-      ];
-      return allowed.includes(origin ?? "") ? origin : "";
-    },
+    origin: (origin: string) =>
+      trustedOrigins.includes(origin ?? "") ? origin : "",
     credentials: true,
     allowMethods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     maxAge: 86400,
@@ -67,7 +61,7 @@ app.use("*", async (c: Context, next: Next) => {
 });
 
 // Home Route with API Documentation [FOR DEMO PURPOSES]
-app.get("/", (c) => {
+app.get("/", (c: Context) => {
   return c.html(
     ApiDoc({
       title: "VuMail Api",
@@ -84,7 +78,11 @@ app.get(
 );
 console.log(`🚀 WebSocket server running on ${Bun.env.BETTER_AUTH_URL}`);
 
-app.on(["GET", "POST"], "/auth/*", async (c) => await auth.handler(c.req.raw));
+app.on(
+  ["GET", "POST"],
+  "/auth/*",
+  async (c: Context) => await auth.handler(c.req.raw),
+);
 
 // routes
 app.route("/users", Users); // User Routes

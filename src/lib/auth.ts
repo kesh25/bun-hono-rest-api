@@ -5,29 +5,14 @@ import { admin } from "better-auth/plugins";
 import { betterAuth } from "better-auth";
 import { expo } from "@better-auth/expo";
 import { client } from "./db-client";
+import { trustedOrigins } from "../../origins";
 
 const _global = globalThis as any;
 
 if (!_global.betterAuth) {
   _global.betterAuth = betterAuth({
     database: mongodbAdapter(client),
-    advanced: {
-      trustProxy: true,
-      ipAddress: {
-        ipAddressHeaders: ["x-client-ip", "x-forwarded-for"],
-        disableIpTracking: true,
-      },
-      useSecureCookies: true,
-      defaultCookieAttributes: {
-        sameSite: "none",
-        secure: true,
-      },
-      crossSubDomainCookies: {
-        enabled: true,
-        sameSite: "none",
-        domain: ".vuteer.com",
-      },
-    },
+
     emailAndPassword: {
       enabled: true,
     },
@@ -44,11 +29,6 @@ if (!_global.betterAuth) {
         permission: admin,
       },
       additionalFields: {
-        domain: {
-          type: "string",
-          input: true,
-          required: false,
-        },
         role: {
           type: "string",
           required: true,
@@ -76,24 +56,6 @@ if (!_global.betterAuth) {
           type: "date",
           input: true,
         },
-        // received: {
-        //   type: "number",
-        //   input: true,
-        //   default: 0,
-        //   defaultValue: 0,
-        // },
-        storage: {
-          type: "number",
-          input: true,
-          default: 0,
-          defaultValue: 0,
-        },
-        totalStorage: {
-          type: "number",
-          input: true,
-          default: 0,
-          defaultValue: 0,
-        },
       },
     },
 
@@ -105,19 +67,7 @@ if (!_global.betterAuth) {
         roles: { admin: adminC, user, superadmin },
       }),
     ],
-    trustedOrigins: ["http://localhost:3000"],
-    logger: {
-      disabled: false,
-      disableColors: false,
-      level: "debug",
-      log: (level, message, ...args) => {
-        // Custom logging implementation
-        console.log(`[${level}] ${message}`, ...args);
-      },
-    },
-    telemetry: {
-      enabled: true,
-    },
+    trustedOrigins,
   });
 }
 
