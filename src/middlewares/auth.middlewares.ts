@@ -22,11 +22,9 @@ export const betterServiceMiddleware = async (c: Context, next: Next) => {
     }
 
     // ✅ Get current session from Better Auth API
-    const res = await auth.api.getSession({
+    const data = await auth.api.getSession({
       headers: forwardedHeaders,
     });
-
-    const data = res?.data;
 
     if (data?.session && data?.user) {
       // Lookup the user in your local DB using the Better Auth user ID
@@ -67,17 +65,22 @@ export const protect = async (c: Context, next: Next) => {
   await next();
 };
 
-// ✅ Restrict routes to admin users only
-export const isAdmin = async (c: Context, next: Next) => {
-  const user = c.get("user");
+/**
+ * Middleware to restrict access to specific roles
+ * @param allowedRoles - array of allowed roles e.g. ["admin", "superadmin"]
+ */
+export const restrictToRoles = (allowedRoles: string[]) => {
+  return async (c: Context, next: Next) => {
+    const user = c.get("user");
 
-  if (!user) {
-    throw new HTTPException(401, { message: "Login required!" });
-  }
+    if (!user) {
+      throw new HTTPException(401, { message: "Login required!" });
+    }
 
-  if (user.role !== "admin") {
-    throw new HTTPException(403, { message: "Not authorized as an admin!" });
-  }
+    if (!allowedRoles.includes(user.role)) {
+      throw new HTTPException(403, { message: "Not authorized!" });
+    }
 
-  await next();
+    await next();
+  };
 };

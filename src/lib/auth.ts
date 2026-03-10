@@ -12,7 +12,23 @@ const _global = globalThis as any;
 if (!_global.betterAuth) {
   _global.betterAuth = betterAuth({
     database: mongodbAdapter(client),
-
+    advanced: {
+      trustProxy: true,
+      ipAddress: {
+        ipAddressHeaders: ["x-client-ip", "x-forwarded-for"],
+        disableIpTracking: true,
+      },
+      useSecureCookies: true,
+      defaultCookieAttributes: {
+        sameSite: "none",
+        secure: true,
+      },
+      crossSubDomainCookies: {
+        enabled: true,
+        sameSite: "none",
+        // domain: ".vuteer.com",
+      },
+    },
     emailAndPassword: {
       enabled: true,
     },
@@ -34,7 +50,7 @@ if (!_global.betterAuth) {
           required: true,
           defaultValue: "user", // Or an initial default role
           default: "user",
-          input: true, // Optional: to allow users to set their own roles
+          // input: true, // Optional: to allow users to set their own roles
         },
         phone: {
           type: "string",
